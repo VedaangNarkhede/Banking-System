@@ -26,6 +26,8 @@ contract FixedDepositVault {
         myToken = IERC20(_tokenAddress); // Address of your deployed myToken contract
     }
 
+    // From Remix, after deploying myToken and FixedDepositVault
+
     // Deposit tokens into a new Fixed Deposit
     function createFD(uint256 _amount, uint256 _months) external {
         require(_amount > 0, "Amount must be greater than 0");
@@ -34,27 +36,25 @@ contract FixedDepositVault {
         // Transfer tokens from user to this contract
         myToken.safeTransferFrom(msg.sender, address(this), _amount);
 
-        fixedDeposits[msg.sender].push(FixedDeposit({
-            amount: _amount,
-            startTime: block.timestamp,
-            maturityPeriod: _months * SECONDS_PER_MONTH,
-            withdrawn: false,
-            renewed: false
-        }));
+        fixedDeposits[msg.sender].push(
+            FixedDeposit({
+                amount: _amount,
+                startTime: block.timestamp,
+                maturityPeriod: _months * SECONDS_PER_MONTH,
+                withdrawn: false,
+                renewed: false
+            })
+        );
     }
 
     // Internal interest calculator (simple interest)
-    function calculateInterest(FixedDeposit memory fd) internal view returns (uint256) {
+    function calculateInterest(
+        FixedDeposit memory fd
+    ) internal view returns (uint256) {
         uint256 timeElapsed = block.timestamp - fd.startTime;
         uint256 monthsElapsed = timeElapsed / SECONDS_PER_MONTH;
 
         uint256 interest = (fd.amount * interestRate * monthsElapsed) / 100;
-
-        if (fd.renewed) {
-            uint256 penalty = (interest * penaltyRate) / 100;
-            interest -= penalty;
-        }
-
         return interest;
     }
 
@@ -63,7 +63,10 @@ contract FixedDepositVault {
         FixedDeposit storage fd = fixedDeposits[msg.sender][_index];
 
         require(!fd.withdrawn, "Already withdrawn");
-        require(block.timestamp >= fd.startTime + fd.maturityPeriod, "FD not yet matured");
+        require(
+            block.timestamp >= fd.startTime + fd.maturityPeriod,
+            "FD not yet matured"
+        );
 
         fd.withdrawn = true;
 
@@ -78,7 +81,10 @@ contract FixedDepositVault {
         FixedDeposit storage fd = fixedDeposits[msg.sender][_index];
 
         require(!fd.withdrawn, "Already withdrawn");
-        require(block.timestamp >= fd.startTime + fd.maturityPeriod, "FD not yet matured");
+        require(
+            block.timestamp >= fd.startTime + fd.maturityPeriod,
+            "FD not yet matured"
+        );
 
         fd.startTime = block.timestamp;
         fd.maturityPeriod = _newMonths * SECONDS_PER_MONTH;
@@ -86,7 +92,9 @@ contract FixedDepositVault {
     }
 
     // View all FDs of a user
-    function getFDs(address user) external view returns (FixedDeposit[] memory) {
+    function getFDs(
+        address user
+    ) external view returns (FixedDeposit[] memory) {
         return fixedDeposits[user];
     }
 }
