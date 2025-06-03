@@ -1,22 +1,14 @@
 from brownie import accounts, myToken, FixedDepositVault
 
-
 def main():
-    # Select deployer account
     dev = accounts[0]
 
     print("Deploying myToken...")
-    token = myToken.deploy({"from": dev})
+    token = myToken.deploy(dev.address, {"from": dev})  # ✅ Pass owner explicitly
     print(f"myToken deployed at: {token.address}")
 
-    # Check if minting has already been done
-    if not token.minted():
-        print("Minting tokens to deployer (only once)...")
-        tx = token.mint(dev.address, 1000, {"from": dev})  # Amount in tokens (not wei), contract scales
-        tx.wait(1)
-        print(f"Minted 1000 tokens to {dev.address}")
-    else:
-        print("Minting already done. Skipping...")
+    print("Minting tokens to deployer...")
+    token.mint(dev.address, 1000, {"from": dev})  # Don't multiply by 10**18, it's done in contract
 
     print("Deploying FixedDepositVault...")
     vault = FixedDepositVault.deploy(token.address, {"from": dev})

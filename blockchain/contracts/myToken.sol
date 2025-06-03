@@ -7,8 +7,10 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 contract myToken is ERC20, Ownable {
     bool public minted = false;
 
-    constructor() ERC20("myToken", "mT") {
-        // Set the deployer as the initial owner
+    constructor(
+        address initialOwner
+    ) ERC20("myToken", "mT") Ownable(initialOwner) {
+        // Nothing more needed
     }
 
     function mint(address to, uint256 amount) external onlyOwner {
