@@ -10,5 +10,8 @@ contract myToken is ERC20 {
         _mint(to, amount);
     }
 
-    
+    function transferToUser(address recipient, uint256 amount) external {
+        require(balanceOf(msg.sender) >= amount, "Insufficient balance");
+        _transfer(msg.sender, recipient, amount);
+    }
 }
