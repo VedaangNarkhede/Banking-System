@@ -224,11 +224,11 @@
     }
   ],
   "allSourcePaths": {
-    "5": "C:/Users/ankes/.brownie/packages/OpenZeppelin/openzeppelin-contracts@5.3.0/contracts/token/ERC20/IERC20.sol",
-    "6": "C:/Users/ankes/.brownie/packages/OpenZeppelin/openzeppelin-contracts@5.3.0/contracts/token/ERC20/extensions/IERC20Metadata.sol"
+    "5": "C:/Users/param/.brownie/packages/OpenZeppelin/openzeppelin-contracts@5.3.0/contracts/token/ERC20/IERC20.sol",
+    "6": "C:/Users/param/.brownie/packages/OpenZeppelin/openzeppelin-contracts@5.3.0/contracts/token/ERC20/extensions/IERC20Metadata.sol"
   },
   "ast": {
-    "absolutePath": "C:/Users/ankes/.brownie/packages/OpenZeppelin/openzeppelin-contracts@5.3.0/contracts/token/ERC20/extensions/IERC20Metadata.sol",
+    "absolutePath": "C:/Users/param/.brownie/packages/OpenZeppelin/openzeppelin-contracts@5.3.0/contracts/token/ERC20/extensions/IERC20Metadata.sol",
     "exportedSymbols": {
       "IERC20": [
         393
@@ -253,7 +253,7 @@
         "src": "125:24:6"
       },
       {
-        "absolutePath": "C:/Users/ankes/.brownie/packages/OpenZeppelin/openzeppelin-contracts@5.3.0/contracts/token/ERC20/IERC20.sol",
+        "absolutePath": "C:/Users/param/.brownie/packages/OpenZeppelin/openzeppelin-contracts@5.3.0/contracts/token/ERC20/IERC20.sol",
         "file": "../IERC20.sol",
         "id": 1595,
         "nameLocation": "-1:-1:-1",
@@ -582,6 +582,6 @@
   "sha1": "683830fde4ecb8befbf4dfa066b6f9df05ae4c79",
   "source": "// SPDX-License-Identifier: MIT\n// OpenZeppelin Contracts (last updated v5.1.0) (token/ERC20/extensions/IERC20Metadata.sol)\n\npragma solidity ^0.8.20;\n\nimport {IERC20} from \"../IERC20.sol\";\n\n/**\n * @dev Interface for the optional metadata functions from the ERC-20 standard.\n */\ninterface IERC20Metadata is IERC20 {\n    /**\n     * @dev Returns the name of the token.\n     */\n    function name() external view returns (string memory);\n\n    /**\n     * @dev Returns the symbol of the token.\n     */\n    function symbol() external view returns (string memory);\n\n    /**\n     * @dev Returns the decimals places of the token.\n     */\n    function decimals() external view returns (uint8);\n}\n",
   "sourceMap": "",
-  "sourcePath": "C:/Users/ankes/.brownie/packages/OpenZeppelin/openzeppelin-contracts@5.3.0/contracts/token/ERC20/extensions/IERC20Metadata.sol",
+  "sourcePath": "C:/Users/param/.brownie/packages/OpenZeppelin/openzeppelin-contracts@5.3.0/contracts/token/ERC20/extensions/IERC20Metadata.sol",
   "type": "interface"
 }
