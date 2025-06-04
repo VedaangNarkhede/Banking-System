@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 contract FixedDepositVault {
-    using SafeERC20 for IERC20;
+    using SafeERC20 for ERC20;
 
-    IERC20 public immutable myToken;
+    ERC20 public immutable myToken;
 
     uint256 public interestRate = 1; // 1% monthly
     uint256 public earlyWithdrawalRate = 75; // 0.75% monthly in basis points
@@ -24,7 +24,7 @@ contract FixedDepositVault {
     mapping(address => FixedDeposit[]) public fixedDeposits;
 
     constructor(address _tokenAddress) {
-        myToken = IERC20(_tokenAddress);
+        myToken = ERC20(_tokenAddress);
     }
 
     // Create a new Fixed Deposit
@@ -69,12 +69,19 @@ contract FixedDepositVault {
         FixedDeposit storage fd = fixedDeposits[msg.sender][_index];
 
         require(!fd.withdrawn, "Already withdrawn");
-        require(block.timestamp >= fd.startTime + fd.maturityPeriod, "FD not yet matured");
+        require(
+            block.timestamp >= fd.startTime + fd.maturityPeriod,
+            "FD not yet matured"
+        );
 
         fd.withdrawn = true;
 
         uint256 monthsElapsed = (fd.maturityPeriod) / SECONDS_PER_MONTH;
-        uint256 interest = calculateCompoundInterest(fd.amount, interestRate * 100, monthsElapsed); // 1% -> 100 basis points
+        uint256 interest = calculateCompoundInterest(
+            fd.amount,
+            interestRate * 100,
+            monthsElapsed
+        ); // 1% -> 100 basis points
 
         myToken.safeTransfer(msg.sender, fd.amount + interest);
     }
@@ -84,14 +91,21 @@ contract FixedDepositVault {
         FixedDeposit storage fd = fixedDeposits[msg.sender][_index];
 
         require(!fd.withdrawn, "Already withdrawn");
-        require(block.timestamp < fd.startTime + fd.maturityPeriod, "FD already matured - use regular withdraw");
+        require(
+            block.timestamp < fd.startTime + fd.maturityPeriod,
+            "FD already matured - use regular withdraw"
+        );
 
         fd.withdrawn = true;
 
         uint256 timeElapsed = block.timestamp - fd.startTime;
         uint256 monthsElapsed = timeElapsed / SECONDS_PER_MONTH;
 
-        uint256 interest = calculateCompoundInterest(fd.amount, earlyWithdrawalRate, monthsElapsed);
+        uint256 interest = calculateCompoundInterest(
+            fd.amount,
+            earlyWithdrawalRate,
+            monthsElapsed
+        );
         myToken.safeTransfer(msg.sender, fd.amount + interest);
     }
 
@@ -100,7 +114,10 @@ contract FixedDepositVault {
         FixedDeposit storage fd = fixedDeposits[msg.sender][_index];
 
         require(!fd.withdrawn, "Already withdrawn");
-        require(block.timestamp >= fd.startTime + fd.maturityPeriod, "FD not yet matured");
+        require(
+            block.timestamp >= fd.startTime + fd.maturityPeriod,
+            "FD not yet matured"
+        );
 
         fd.startTime = block.timestamp;
         fd.maturityPeriod = _newMonths * SECONDS_PER_MONTH;
@@ -108,7 +125,9 @@ contract FixedDepositVault {
     }
 
     // View all FDs for a user
-    function getFDs(address user) external view returns (FixedDeposit[] memory) {
+    function getFDs(
+        address user
+    ) external view returns (FixedDeposit[] memory) {
         return fixedDeposits[user];
     }
 }
