@@ -1,15 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "./myToken.sol";
 
 contract FixedDepositVault {
-    using SafeERC20 for ERC20;
+    MyToken public myToken;
 
-    ERC20 public immutable myToken;
-
-    uint256 public interestRate = 1; // 1% monthly
+    uint256 public interestRate = 1; // 1% per month
     uint256 public earlyWithdrawalRate = 75; // 0.75% monthly in basis points
     uint256 public constant SECONDS_PER_MONTH = 30 days;
 
@@ -23,16 +20,31 @@ contract FixedDepositVault {
 
     mapping(address => FixedDeposit[]) public fixedDeposits;
 
-    constructor(address _tokenAddress) {
-        myToken = ERC20(_tokenAddress);
+    constructor() {
+        myToken = new MyToken(address(this));
+        myToken.mint(address(this), 1000 * 10 ** 18);
+    }
+    function ETHtomT() external payable {
+        require(msg.value > 0, "Send ETH to get tokens");
+        uint256 tokenAmount = msg.value * 200000;
+        myToken.mint(msg.sender, tokenAmount);
+    }
+    function mTtoETH(uint256 tokenAmount) external {
+        require(tokenAmount > 0, "Invalid amount");
+
+        uint256 ethAmount = tokenAmount / 100;
+        require(address(this).balance >= ethAmount, "Vault lacks ETH");
+
+        myToken.transferFrom(msg.sender, address(this), tokenAmount);
+        payable(msg.sender).transfer(ethAmount);
     }
 
-    // Create a new Fixed Deposit
+    // Create Fixed Deposit
     function createFD(uint256 _amount, uint256 _months) external {
-        require(_amount > 0, "Amount must be greater than 0");
-        require(_months > 0, "Must lock for at least 1 month");
+        require(_amount > 0, "Amount must be > 0");
+        require(_months > 0, "Must be at least 1 month");
 
-        myToken.safeTransferFrom(msg.sender, address(this), _amount);
+        myToken.transferFrom(msg.sender, address(this), _amount);
 
         fixedDeposits[msg.sender].push(
             FixedDeposit({
@@ -45,7 +57,6 @@ contract FixedDepositVault {
         );
     }
 
-    // Compound interest calculator
     function calculateCompoundInterest(
         uint256 principal,
         uint256 ratePerMonth, // Use 1% as 100, 0.75% as 75 (basis points)
@@ -83,7 +94,7 @@ contract FixedDepositVault {
             monthsElapsed
         ); // 1% -> 100 basis points
 
-        myToken.safeTransfer(msg.sender, fd.amount + interest);
+        myToken.transfer(msg.sender, fd.amount + interest);
     }
 
     // Early withdrawal before maturity
@@ -106,17 +117,16 @@ contract FixedDepositVault {
             earlyWithdrawalRate,
             monthsElapsed
         );
-        myToken.safeTransfer(msg.sender, fd.amount + interest);
+        myToken.transfer(msg.sender, fd.amount + interest);
     }
 
-    // Renew FD after maturity (no penalty)
     function renewFD(uint256 _index, uint256 _newMonths) external {
         FixedDeposit storage fd = fixedDeposits[msg.sender][_index];
 
         require(!fd.withdrawn, "Already withdrawn");
         require(
             block.timestamp >= fd.startTime + fd.maturityPeriod,
-            "FD not yet matured"
+            "FD not matured"
         );
 
         fd.startTime = block.timestamp;
@@ -124,10 +134,16 @@ contract FixedDepositVault {
         fd.renewed = true;
     }
 
-    // View all FDs for a user
     function getFDs(
         address user
     ) external view returns (FixedDeposit[] memory) {
         return fixedDeposits[user];
     }
+
+    // View vault ETH balance
+    function getVaultETHBalance() external view returns (uint256) {
+        return address(this).balance;
+    }
+
+    receive() external payable {}
 }
