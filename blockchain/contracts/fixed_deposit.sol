@@ -27,17 +27,28 @@ contract FixedDepositVault {
 
     constructor() {
         myToken = new MyToken(address(this));
-        myToken.mint(address(this), 1000 * 10 ** 18);
+        myToken.mint(address(this), 1000);
     }
     function ETHtomT() external payable {
         require(msg.value > 0, "Send ETH to get tokens");
-        uint256 tokenAmount = msg.value * 200000;
+        uint256 tokenAmount = msg.value * 200000; // scale tokens by 1e18
         myToken.mint(msg.sender, tokenAmount);
     }
-    function mTtoETH(uint256 tokenAmount) external {
+
+    // New function: mTtoETH using permit to approve & spend tokens in one tx
+    function mTtoETHWithPermit(
+        uint256 tokenAmount,
+        uint256 deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external {
         require(tokenAmount > 0, "Invalid amount");
 
-        uint256 ethAmount = tokenAmount / 100;
+        // Approve vault to spend user's tokens via permit signature
+        myToken.permit(msg.sender, address(this), tokenAmount, deadline, v, r, s);
+
+        uint256 ethAmount = tokenAmount / (200000);
         require(address(this).balance >= ethAmount, "Vault lacks ETH");
 
         myToken.transferFrom(msg.sender, address(this), tokenAmount);

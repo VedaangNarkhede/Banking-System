@@ -1,18 +1,17 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/draft-ERC20Permit.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract MyToken is ERC20, Ownable {
-    constructor(
-        address initialOwner
-    ) ERC20("myToken", "mT") Ownable(initialOwner) {
-        // Nothing more needed
-    }
+contract MyToken is ERC20Permit, Ownable {
+    constructor(address initialOwner)
+        ERC20("myToken", "mT")
+        ERC20Permit("myToken")
+        Ownable(initialOwner)
+    {}
 
     function mint(address to, uint256 amount) external onlyOwner {
-        amount = amount * 10 ** 18;
         _mint(to, amount);
     }
 
