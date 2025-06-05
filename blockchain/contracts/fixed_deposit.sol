@@ -10,8 +10,34 @@ contract FixedDepositVault {
     uint256 public earlyWithdrawalRate = 75; // 0.75% monthly in basis points
     uint256 public constant SECONDS_PER_MONTH = 30 days;
     uint256 public constant balance_interest = 50;
-    // uint256 public con = address(this).balance;
-    //unit256 public con = myToken.balanceOf(address(this));
+
+    constructor(address tokenAddress) {
+        myToken = MyToken(tokenAddress);
+
+        // Mint some tokens to the vault (optional)
+    }
+
+    function ETHtomT() external payable {
+        require(msg.value > 0, "Send ETH to get tokens");
+
+        // Properly scaled token mint (200,000 tokens per 1 ETH)
+        uint256 tokenAmount = (200000 * 10 ** 18 * msg.value) / 1 ether;
+
+        myToken.mint(msg.sender, tokenAmount);
+    }
+
+    function mTtoETH(uint256 tokenAmount) external {
+        require(tokenAmount > 0, "Invalid amount");
+
+        // Calculate how much ETH to return
+        uint256 ethAmount = (tokenAmount * 1 ether) / (200000 * 10 ** 18);
+
+        require(myToken.allowance(msg.sender, address(this)) >= tokenAmount, "Vault not approved");
+        require(address(this).balance >= ethAmount, "Vault lacks ETH");
+
+        myToken.transferFrom(msg.sender, address(this), tokenAmount);
+        payable(msg.sender).transfer(ethAmount);
+    }
 
     struct FixedDeposit {
         uint256 amount;
@@ -22,40 +48,8 @@ contract FixedDepositVault {
     }
 
     mapping(address => FixedDeposit[]) public fixedDeposits;
-
     mapping(address => uint256) public lastBalanceInterestClaim;
 
-    constructor() {
-        myToken = new MyToken(address(this));
-        myToken.mint(address(this), 1000);
-    }
-    function ETHtomT() external payable {
-        require(msg.value > 0, "Send ETH to get tokens");
-        uint256 tokenAmount = msg.value * 200000; // scale tokens by 1e18
-        myToken.mint(msg.sender, tokenAmount);
-    }
-
-    // New function: mTtoETH using permit to approve & spend tokens in one tx
-    function mTtoETHWithPermit(
-        uint256 tokenAmount,
-        uint256 deadline,
-        uint8 v,
-        bytes32 r,
-        bytes32 s
-    ) external {
-        require(tokenAmount > 0, "Invalid amount");
-
-        // Approve vault to spend user's tokens via permit signature
-        myToken.permit(msg.sender, address(this), tokenAmount, deadline, v, r, s);
-
-        uint256 ethAmount = tokenAmount / (200000);
-        require(address(this).balance >= ethAmount, "Vault lacks ETH");
-
-        myToken.transferFrom(msg.sender, address(this), tokenAmount);
-        payable(msg.sender).transfer(ethAmount);
-    }
-
-    // Create Fixed Deposit
     function createFD(uint256 _amount, uint256 _months) external {
         require(_amount > 0, "Amount must be > 0");
         require(_months > 0, "Must be at least 1 month");
@@ -75,12 +69,12 @@ contract FixedDepositVault {
 
     function calculateCompoundInterest(
         uint256 principal,
-        uint256 ratePerMonth, // Use 1% as 100, 0.75% as 75 (basis points)
+        uint256 ratePerMonth,
         uint256 months
     ) internal pure returns (uint256) {
         if (months == 0) return 0;
 
-        uint256 multiplier = 1e18 + (ratePerMonth * 1e14); // Convert basis points to 18-decimal fixed-point
+        uint256 multiplier = 1e18 + (ratePerMonth * 1e14);
         uint256 compoundFactor = 1e18;
 
         for (uint256 i = 0; i < months; i++) {
@@ -91,7 +85,6 @@ contract FixedDepositVault {
         return totalAmount - principal;
     }
 
-    // Withdraw after maturity
     function withdrawFD(uint256 _index) external {
         FixedDeposit storage fd = fixedDeposits[msg.sender][_index];
 
@@ -103,17 +96,16 @@ contract FixedDepositVault {
 
         fd.withdrawn = true;
 
-        uint256 monthsElapsed = (fd.maturityPeriod) / SECONDS_PER_MONTH;
+        uint256 monthsElapsed = fd.maturityPeriod / SECONDS_PER_MONTH;
         uint256 interest = calculateCompoundInterest(
             fd.amount,
             interestRate * 100,
             monthsElapsed
-        ); // 1% -> 100 basis points
+        );
 
         myToken.transfer(msg.sender, fd.amount + interest);
     }
 
-    // Early withdrawal before maturity
     function earlyWithdrawFD(uint256 _index) external {
         FixedDeposit storage fd = fixedDeposits[msg.sender][_index];
 
@@ -150,34 +142,22 @@ contract FixedDepositVault {
         fd.renewed = true;
     }
 
-    function getFDs(
-        address user
-    ) external view returns (FixedDeposit[] memory) {
+    function getFDs(address user) external view returns (FixedDeposit[] memory) {
         return fixedDeposits[user];
     }
 
-    // View vault ETH balance
-    function getVaultETHBalance() external view returns (uint256) {
-        return address(this).balance;
-    }
-
-    receive() external payable {}
-
     function pendingBalanceInterest(address _user) public view returns (uint256) {
         uint256 lastClaim = lastBalanceInterestClaim[_user];
-        // if (lastClaim == 0) {
-        //     return 0;
-        // }
         uint256 elapsed = block.timestamp - lastClaim;
         uint256 fullMonths = elapsed / SECONDS_PER_MONTH;
         if (fullMonths == 0) {
             return 0;
         }
+
         uint256 principal = myToken.balanceOf(_user);
         uint256 interest = (principal * balance_interest * fullMonths) / 10000;
         return interest;
     }
-
 
     function claimBalanceInterest() external {
         uint256 lastClaim = lastBalanceInterestClaim[msg.sender];
@@ -197,27 +177,10 @@ contract FixedDepositVault {
 
         myToken.mint(msg.sender, interest);
     }
-    
-    function show() public view returns(uint256){
-        return myToken.balanceOf(address(this));
+
+    function getVaultETHBalance() external view returns (uint256) {
+        return address(this).balance;
     }
 
-    //     function testClaimBalanceInterest(uint256 _months) external {
-    //     require(_months > 0, "Must request at least 1 month");
-    //     uint256 principal = myToken.balanceOf(msg.sender);
-    //     require(principal > 0, "No token balance to earn interest on");
-
-    //     uint256 interest = (principal * balance_interest * _months) / 10000;
-    //     require(interest > 0, "Calculated interest is zero");
-
-    //     myToken.mint(msg.sender, interest);
-    // }
-
-    // function testmint (uint256 _amount, address _address) public {
-    //     myToken.mint(_address, _amount);
-    // }
-
-    // function get_balance(address _add) public view returns (uint256) {
-    //     return myToken.balanceOf(_add);
-    // }
+    receive() external payable {}
 }
