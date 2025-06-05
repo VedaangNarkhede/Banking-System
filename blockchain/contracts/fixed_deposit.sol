@@ -186,6 +186,10 @@ contract FixedDepositVault {
 
         myToken.mint(msg.sender, interest);
     }
+    
+    function show() public view returns(uint256){
+        return myToken.balanceOf(address(this));
+    }
 
     //     function testClaimBalanceInterest(uint256 _months) external {
     //     require(_months > 0, "Must request at least 1 month");
