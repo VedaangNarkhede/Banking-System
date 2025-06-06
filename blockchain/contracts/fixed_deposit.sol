@@ -11,11 +11,35 @@ contract FixedDepositVault {
     uint256 public constant SECONDS_PER_MONTH = 30 days;
     uint256 public constant balance_interest = 50;
     address[] public allUsers;
+    uint256 public bal;
+    uint256 public vault_bal;
 
     constructor(address tokenAddress) {
         myToken = MyToken(tokenAddress);
 
         // Mint some tokens to the vault (optional)
+    }
+
+    function balan() public{
+        bal = myToken.balanceOf(msg.sender);
+        vault_bal = myToken.balanceOf(address(this));
+    }
+
+
+
+    function registerUser(address user) public {
+    if (!isUserRegistered[user]) {
+        allUsers.push(user);
+        isUserRegistered[user] = true;
+        }
+    }
+
+    function getAllUsers() external view returns (address[] memory) {
+        return allUsers;
+    }
+
+    function getTotalUsers() external view returns (uint256) {
+        return allUsers.length;
     }
 
 
@@ -51,10 +75,13 @@ contract FixedDepositVault {
         // Calculate how much ETH to return
         uint256 ethAmount = (tokenAmount * 1 ether) / (200000 * 10 ** 18);
 
-        require(myToken.allowance(msg.sender, address(this)) >= tokenAmount, "Vault not approved");
+        require(
+            myToken.allowance(msg.sender, address(this)) >= tokenAmount,
+            "Vault not approved"
+        );
         require(address(this).balance >= ethAmount, "Vault lacks ETH");
 
-        myToken.transferFrom(msg.sender, address(this), tokenAmount);
+        myToken.burnFrom(msg.sender, tokenAmount);
         payable(msg.sender).transfer(ethAmount);
     }
 
@@ -163,7 +190,9 @@ contract FixedDepositVault {
         fd.renewed = true;
     }
 
-    function getFDs(address user) external view returns (FixedDeposit[] memory) {
+    function getFDs(
+        address user
+    ) external view returns (FixedDeposit[] memory) {
         return fixedDeposits[user];
     }
 
@@ -205,7 +234,7 @@ contract FixedDepositVault {
 
     receive() external payable {}
 
-    function generate_currency() internal{
+    function generate_currency() external{
         myToken.mint(address(this), 200000*10**18);
     }
     
