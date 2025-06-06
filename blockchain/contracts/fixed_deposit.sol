@@ -32,7 +32,10 @@ contract FixedDepositVault {
         // Calculate how much ETH to return
         uint256 ethAmount = (tokenAmount * 1 ether) / (200000 * 10 ** 18);
 
-        require(myToken.allowance(msg.sender, address(this)) >= tokenAmount, "Vault not approved");
+        require(
+            myToken.allowance(msg.sender, address(this)) >= tokenAmount,
+            "Vault not approved"
+        );
         require(address(this).balance >= ethAmount, "Vault lacks ETH");
 
         myToken.transferFrom(msg.sender, address(this), tokenAmount);
@@ -142,11 +145,15 @@ contract FixedDepositVault {
         fd.renewed = true;
     }
 
-    function getFDs(address user) external view returns (FixedDeposit[] memory) {
+    function getFDs(
+        address user
+    ) external view returns (FixedDeposit[] memory) {
         return fixedDeposits[user];
     }
 
-    function pendingBalanceInterest(address _user) public view returns (uint256) {
+    function pendingBalanceInterest(
+        address _user
+    ) public view returns (uint256) {
         uint256 lastClaim = lastBalanceInterestClaim[_user];
         uint256 elapsed = block.timestamp - lastClaim;
         uint256 fullMonths = elapsed / SECONDS_PER_MONTH;
@@ -173,7 +180,9 @@ contract FixedDepositVault {
         uint256 elapsed = block.timestamp - lastClaim;
         uint256 fullMonths = elapsed / SECONDS_PER_MONTH;
 
-        lastBalanceInterestClaim[msg.sender] = lastClaim + (fullMonths * SECONDS_PER_MONTH);
+        lastBalanceInterestClaim[msg.sender] =
+            lastClaim +
+            (fullMonths * SECONDS_PER_MONTH);
 
         myToken.mint(msg.sender, interest);
     }
@@ -184,7 +193,7 @@ contract FixedDepositVault {
 
     receive() external payable {}
 
-    function generate_currency() internal{
-        myToken.mint(address(this), 200000*10**18)
+    function generate_currency() internal {
+        myToken.mint(address(this), 200000 * 10 ** 18);
     }
 }
