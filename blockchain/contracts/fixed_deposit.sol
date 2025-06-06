@@ -10,11 +10,29 @@ contract FixedDepositVault {
     uint256 public earlyWithdrawalRate = 75; // 0.75% monthly in basis points
     uint256 public constant SECONDS_PER_MONTH = 30 days;
     uint256 public constant balance_interest = 50;
+    address[] public allUsers;
 
     constructor(address tokenAddress) {
         myToken = MyToken(tokenAddress);
 
         // Mint some tokens to the vault (optional)
+    }
+
+
+
+    function registerUser(address user) public {
+    if (!isUserRegistered[user]) {
+        allUsers.push(user);
+        isUserRegistered[user] = true;
+        }
+    }
+
+    function getAllUsers() external view returns (address[] memory) {
+        return allUsers;
+    }
+
+    function getTotalUsers() external view returns (uint256) {
+        return allUsers.length;
     }
 
     function ETHtomT() external payable {
@@ -24,6 +42,7 @@ contract FixedDepositVault {
         uint256 tokenAmount = (200000 * 10 ** 18 * msg.value) / 1 ether;
 
         myToken.mint(msg.sender, tokenAmount);
+        registerUser(msg.sender);
     }
 
     function mTtoETH(uint256 tokenAmount) external {
@@ -49,6 +68,8 @@ contract FixedDepositVault {
 
     mapping(address => FixedDeposit[]) public fixedDeposits;
     mapping(address => uint256) public lastBalanceInterestClaim;
+    mapping(address => bool) public isUserRegistered;
+
 
     function createFD(uint256 _amount, uint256 _months) external {
         require(_amount > 0, "Amount must be > 0");
@@ -146,37 +167,37 @@ contract FixedDepositVault {
         return fixedDeposits[user];
     }
 
-    function pendingBalanceInterest(address _user) public view returns (uint256) {
-        uint256 lastClaim = lastBalanceInterestClaim[_user];
-        uint256 elapsed = block.timestamp - lastClaim;
-        uint256 fullMonths = elapsed / SECONDS_PER_MONTH;
-        if (fullMonths == 0) {
-            return 0;
-        }
+    // function pendingBalanceInterest(address _user) public view returns (uint256) {
+    //     uint256 lastClaim = lastBalanceInterestClaim[_user];
+    //     uint256 elapsed = block.timestamp - lastClaim;
+    //     uint256 fullMonths = elapsed / SECONDS_PER_MONTH;
+    //     if (fullMonths == 0) {
+    //         return 0;
+    //     }
 
-        uint256 principal = myToken.balanceOf(_user);
-        uint256 interest = (principal * balance_interest * fullMonths) / 10000;
-        return interest;
-    }
+    //     uint256 principal = myToken.balanceOf(_user);
+    //     uint256 interest = (principal * balance_interest * fullMonths) / 10000;
+    //     return interest;
+    // }
 
-    function claimBalanceInterest() external {
-        uint256 lastClaim = lastBalanceInterestClaim[msg.sender];
+    // function claimBalanceInterest() external {
+    //     uint256 lastClaim = lastBalanceInterestClaim[msg.sender];
 
-        if (lastClaim == 0) {
-            lastBalanceInterestClaim[msg.sender] = block.timestamp;
-            return;
-        }
+    //     if (lastClaim == 0) {
+    //         lastBalanceInterestClaim[msg.sender] = block.timestamp - (block.timestamp % SECONDS_PER_MONTH);
+    //         return;
+    //     }
 
-        uint256 interest = pendingBalanceInterest(msg.sender);
-        require(interest > 0, "No full month elapsed or zero balance");
+    //     uint256 interest = pendingBalanceInterest(msg.sender);
+    //     require(interest > 0, "No full month elapsed or zero balance");
 
-        uint256 elapsed = block.timestamp - lastClaim;
-        uint256 fullMonths = elapsed / SECONDS_PER_MONTH;
+    //     uint256 elapsed = block.timestamp - lastClaim;
+    //     uint256 fullMonths = elapsed / SECONDS_PER_MONTH;
 
-        lastBalanceInterestClaim[msg.sender] = lastClaim + (fullMonths * SECONDS_PER_MONTH);
+    //     lastBalanceInterestClaim[msg.sender] = lastClaim + (fullMonths * SECONDS_PER_MONTH);
 
-        myToken.mint(msg.sender, interest);
-    }
+    //     myToken.mint(msg.sender, interest);
+    // }
 
     function getVaultETHBalance() external view returns (uint256) {
         return address(this).balance;
@@ -187,4 +208,58 @@ contract FixedDepositVault {
     function generate_currency() internal{
         myToken.mint(address(this), 200000*10**18);
     }
+    
+    function distributeMonthlyInterest() external {
+        for (uint256 i = 0; i < allUsers.length; i++) {
+            address user = allUsers[i];
+
+            if (myToken.balanceOf(user) == 0) {
+                continue;
+            }
+            
+            uint256 lastClaim = lastBalanceInterestClaim[user];
+
+            if (lastClaim == 0) {
+                lastBalanceInterestClaim[user] = block.timestamp;
+                continue;
+            }
+
+            uint256 elapsed = block.timestamp - lastClaim;
+            uint256 fullMonths = elapsed / SECONDS_PER_MONTH;
+            
+            if (fullMonths > 0) {
+                uint256 principal = myToken.balanceOf(user);
+                uint256 interest = (principal * balance_interest * fullMonths) / 10000;
+
+                lastBalanceInterestClaim[user] = lastClaim + (fullMonths * SECONDS_PER_MONTH);
+
+                myToken.mint(user, interest);
+            }
+        }
+    }
+
+
+    // function testClaimBalanceInterest(uint256 _months) external {
+    //     for (uint256 i = 0; i < allUsers.length; i++) {
+    //             address user = allUsers[i];
+
+    //             if (myToken.balanceOf(user) == 0) {
+    //                 continue;
+    //             }
+                
+    //             uint256 lastClaim = lastBalanceInterestClaim[user];
+
+    //             if (lastClaim == 0) {
+    //                 lastBalanceInterestClaim[user] = block.timestamp;
+    //                 continue;
+    //             }
+            
+    //                 uint256 principal = myToken.balanceOf(user);
+    //                 uint256 interest = (principal * balance_interest * _months) / 10000;
+
+    //                 lastBalanceInterestClaim[user] = lastClaim + (_months * SECONDS_PER_MONTH);
+
+    //                 myToken.mint(user, interest);
+    //         }
+    //     }
 }
