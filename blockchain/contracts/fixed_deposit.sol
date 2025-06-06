@@ -8,13 +8,20 @@ contract FixedDepositVault {
 
     uint256 public interestRate = 1; // 1% per month
     uint256 public earlyWithdrawalRate = 75; // 0.75% monthly in basis points
-    uint256 public constant SECONDS_PER_MONTH = 30 days;
+    uint256 public constant SECONDS_PER_MONTH = 10;
     uint256 public constant balance_interest = 50;
+    uint256 public bal;
+    uint256 public vault_bal;
 
     constructor(address tokenAddress) {
         myToken = MyToken(tokenAddress);
 
         // Mint some tokens to the vault (optional)
+    }
+
+    function balan() public{
+        bal = myToken.balanceOf(msg.sender);
+        vault_bal = myToken.balanceOf(address(this));
     }
 
     function ETHtomT() external payable {
@@ -38,7 +45,7 @@ contract FixedDepositVault {
         );
         require(address(this).balance >= ethAmount, "Vault lacks ETH");
 
-        myToken.transferFrom(msg.sender, address(this), tokenAmount);
+        myToken.burnFrom(msg.sender, tokenAmount);
         payable(msg.sender).transfer(ethAmount);
     }
 
@@ -193,7 +200,7 @@ contract FixedDepositVault {
 
     receive() external payable {}
 
-    function generate_currency() internal{
+    function generate_currency() external{
         myToken.mint(address(this), 200000*10**18);
     }
 }
