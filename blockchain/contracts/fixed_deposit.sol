@@ -8,7 +8,7 @@ contract FixedDepositVault {
 
     uint256 public interestRate = 1; // 1% per month
     uint256 public earlyWithdrawalRate = 75; // 0.75% monthly in basis points
-    uint256 public constant SECONDS_PER_MONTH = 10;
+    uint256 public constant SECONDS_PER_MONTH = 30 days;
     uint256 public constant balance_interest = 50;
     uint256 public bal;
     uint256 public vault_bal;
