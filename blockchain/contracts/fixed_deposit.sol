@@ -25,25 +25,6 @@ contract FixedDepositVault {
         vault_bal = myToken.balanceOf(address(this));
     }
 
-
-
-    function registerUser(address user) public {
-    if (!isUserRegistered[user]) {
-        allUsers.push(user);
-        isUserRegistered[user] = true;
-        }
-    }
-
-    function getAllUsers() external view returns (address[] memory) {
-        return allUsers;
-    }
-
-    function getTotalUsers() external view returns (uint256) {
-        return allUsers.length;
-    }
-
-
-
     function registerUser(address user) public {
     if (!isUserRegistered[user]) {
         allUsers.push(user);
