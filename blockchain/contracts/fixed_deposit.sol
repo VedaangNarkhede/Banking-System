@@ -185,6 +185,6 @@ contract FixedDepositVault {
     receive() external payable {}
 
     function generate_currency() internal{
-        myToken.mint(address(this), 200000*10**18)
+        myToken.mint(address(this), 200000*10**18);
     }
 }
