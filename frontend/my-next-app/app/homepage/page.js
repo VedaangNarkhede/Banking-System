@@ -1,553 +1,616 @@
-"use client";
+"use client"
+import React, { useState, useEffect } from 'react';
+import { ethers } from 'ethers';
+import { Wallet, DollarSign, TrendingUp, Clock, ArrowUpDown, RefreshCw, AlertCircle } from 'lucide-react';
 
-import { useEffect, useState } from "react";
-import { BrowserProvider, Contract, parseEther, parseUnits } from "ethers";
+// Contract ABIs (simplified for main functions)
+const VAULT_ABI = [
+  "function ETHtomT() external payable",
+  "function mTtoETH(uint256 tokenAmount) external",
+  "function createFD(uint256 _amount, uint256 _months) external",
+  "function withdrawFD(uint256 _index) external",
+  "function earlyWithdrawFD(uint256 _index) external",
+  "function renewFD(uint256 _index, uint256 _newMonths) external",
+  "function getFDs(address user) external view returns (tuple(uint256 amount, uint256 startTime, uint256 maturityPeriod, bool withdrawn, bool renewed)[] memory)",
+  "function getVaultETHBalance() external view returns (uint256)",
+  "function distributeMonthlyInterest() external",
+  "function balan() public",
+  "function bal() public view returns (uint256)",
+  "function vault_bal() public view returns (uint256)",
+  "function interestRate() public view returns (uint256)",
+  "function earlyWithdrawalRate() public view returns (uint256)"
+];
 
-// Replace with your deployed vault address
-const VAULT_ADDRESS = "0x52e1d2b03D0434D7acC42308d38591A7A1E7163a";
+const TOKEN_ABI = [
+  "function balanceOf(address account) external view returns (uint256)",
+  "function approve(address spender, uint256 amount) external returns (bool)",
+  "function allowance(address owner, address spender) external view returns (uint256)",
+  "function transfer(address to, uint256 amount) external returns (bool)",
+  "function decimals() external view returns (uint8)"
+];
 
-// Load ABIs (make sure these JSON files exist under `/abi/`)
-const vaultJSON = require("../../abi/fixeddepositvault.json");
-const vaultABI  = vaultJSON.abi;
-
-const tokenJSON = require("../../abi/mytoken.json");
-const tokenABI  = tokenJSON.abi;
-
-export default function Homepage() {
-  const [wallet, setWallet] = useState(null);
+const FixedDepositDApp = () => {
+  // State variables
+  const [account, setAccount] = useState('');
   const [provider, setProvider] = useState(null);
   const [signer, setSigner] = useState(null);
-
   const [vaultContract, setVaultContract] = useState(null);
   const [tokenContract, setTokenContract] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  
+  // Balances
+  const [ethBalance, setEthBalance] = useState('0');
+  const [tokenBalance, setTokenBalance] = useState('0');
+  const [vaultEthBalance, setVaultEthBalance] = useState('0');
+  
+  // Form states
+  const [ethToConvert, setEthToConvert] = useState('');
+  const [tokensToConvert, setTokensToConvert] = useState('');
+  const [fdAmount, setFdAmount] = useState('');
+  const [fdMonths, setFdMonths] = useState('');
+  const [approveAmount, setApproveAmount] = useState('');
+  
+  // Fixed deposits
+  const [fixedDeposits, setFixedDeposits] = useState([]);
+  const [renewIndex, setRenewIndex] = useState('');
+  const [renewMonths, setRenewMonths] = useState('');
+  
+  // Contract addresses (you'll need to update these with your deployed contract addresses)
+  const VAULT_ADDRESS = "0xb3084451C784c62bAfeEC572B1FF0e5f5CFAD930"; // Replace with your vault contract address
+  const TOKEN_ADDRESS = "0x7d2D191E04A267e165C8E61B69223cbCd4B5af94"; // Replace with your token contract address
 
-  // ─── User Inputs ───────────────────────────────────────────────────────────────
-  const [ethToTokenValue, setEthToTokenValue] = useState(""); // in ETH
-  const [tokenToEthValue, setTokenToEthValue] = useState(""); // in tokens (18 decimals)
-
-  const [approveAmount, setApproveAmount] = useState(""); // for vault approvals
-
-  const [fdTokenAmount, setFdTokenAmount] = useState(""); // in tokens
-  const [fdMonths, setFdMonths] = useState(""); // lock period in months
-
-  const [recipient, setRecipient] = useState("");
-  const [transferAmount, setTransferAmount] = useState(""); // in tokens
-
-  // ─── On‐chain Retrievals ────────────────────────────────────────────────────────
-  const [userBalance, setUserBalance] = useState("0"); // user's mT balance
-  const [vaultBalance, setVaultBalance] = useState("0"); // vault's mT balance
-  const [vaultETH, setVaultETH] = useState("0"); // vault's ETH balance
-  const [fixedDeposits, setFixedDeposits] = useState([]); // array of FD structs
-
-  // ─── Initialize / Wallet Connect ────────────────────────────────────────────────
-  useEffect(() => {
-    if (typeof window.ethereum !== "undefined") {
-      window.ethereum.on("accountsChanged", () => connectWallet());
-    }
-  }, []);
-
+  // Connect to MetaMask
   const connectWallet = async () => {
-    if (!window.ethereum) {
-      alert("Please install MetaMask to use this dApp.");
-      return;
-    }
     try {
-      const _provider = new BrowserProvider(window.ethereum);
-      await window.ethereum.request({ method: "eth_requestAccounts" });
-      const _signer = await _provider.getSigner();
-      const userAddress = await _signer.getAddress();
+      if (!window.ethereum) {
+        setError('MetaMask not found. Please install MetaMask.');
+        return;
+      }
 
-      // Instantiate the vault contract
-      const _vault = new Contract(VAULT_ADDRESS, vaultABI, _signer);
+      setLoading(true);
+      const accounts = await window.ethereum.request({
+        method: 'eth_requestAccounts',
+      });
 
-      // Fetch the token address from vault
-      const tokenAddress = await _vault.myToken();
-      // Instantiate the token contract
-      const _token = new Contract(tokenAddress, tokenABI, _signer);
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+      
+      setAccount(accounts[0]);
+      setProvider(provider);
+      setSigner(signer);
 
-      setWallet(userAddress);
-      setProvider(_provider);
-      setSigner(_signer);
-      setVaultContract(_vault);
-      setTokenContract(_token);
-
-      // Load on‐chain data
-      await fetchBalances(_vault, _token, userAddress);
-      await fetchFDs(_vault, userAddress);
-      await fetchVaultETH(_vault);
+      // Initialize contracts
+      const vault = new ethers.Contract(VAULT_ADDRESS, VAULT_ABI, signer);
+      const token = new ethers.Contract(TOKEN_ADDRESS, TOKEN_ABI, signer);
+      
+      setVaultContract(vault);
+      setTokenContract(token);
+      
+      setError('');
     } catch (err) {
-      console.error(err);
-      alert("Failed to connect wallet.");
+      setError('Failed to connect wallet: ' + err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
-  // ─── Fetch Balances & Data ───────────────────────────────────────────────────────
-  const fetchBalances = async (_vault, _token, userAddress) => {
-    try {
-      const userBal = await _token.balanceOf(userAddress);
-      const vaultBal = await _token.balanceOf(VAULT_ADDRESS);
+  // Load balances and data
+  const loadData = async () => {
+    if (!provider || !account || !vaultContract || !tokenContract) return;
 
-      setUserBalance(userBal.toString());
-      setVaultBalance(vaultBal.toString());
+    try {
+      setLoading(true);
+      
+      // Get ETH balance
+      const ethBal = await provider.getBalance(account);
+      setEthBalance(ethers.formatEther(ethBal));
+      
+      // Get token balance
+      const tokenBal = await tokenContract.balanceOf(account);
+      setTokenBalance(ethers.formatEther(tokenBal));
+      
+      // Get vault ETH balance
+      const vaultEthBal = await vaultContract.getVaultETHBalance();
+      setVaultEthBalance(ethers.formatEther(vaultEthBal));
+      
+      // Get fixed deposits
+      const fds = await vaultContract.getFDs(account);
+      setFixedDeposits(fds);
+      
     } catch (err) {
-      console.error("Error fetching balances:", err);
+      setError('Failed to load data: ' + err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const fetchVaultETH = async (_vault) => {
+  // Convert ETH to mT
+  const convertEthToTokens = async () => {
+    if (!vaultContract || !ethToConvert) return;
+
     try {
-      const ethBal = await _vault.getVaultETHBalance();
-      setVaultETH(ethBal.toString());
-    } catch (err) {
-      console.error("Error fetching vault ETH balance:", err);
-    }
-  };
-
-  const fetchFDs = async (_vault, userAddress) => {
-    try {
-      const fds = await _vault.getFDs(userAddress);
-      // fds is an array of structs: { amount, startTime, maturityPeriod, withdrawn, renewed }
-      const parsed = fds.map((fd) => ({
-        amount: fd.amount.toString(),
-        startTime: fd.startTime.toString(),
-        maturityPeriod: fd.maturityPeriod.toString(),
-        withdrawn: fd.withdrawn,
-        renewed: fd.renewed,
-      }));
-      setFixedDeposits(parsed);
-    } catch (err) {
-      console.error("Error fetching FDs:", err);
-    }
-  };
-
-  // ─── UI Helpers ───────────────────────────────────────────────────────────────────
-  const formatUnits = (bigNum) => {
-    return (BigInt(bigNum) / BigInt(10 ** 18)).toString();
-  };
-
-  // ─── Actions ─────────────────────────────────────────────────────────────────────
-
-  // 1. Convert ETH → mT tokens
-  const handleETHtoMT = async () => {
-    if (!vaultContract || !ethToTokenValue) return;
-    try {
-      // parseEther for ETH (will send this much ETH)
-      const tx = await vaultContract.ETHtomT({ value: parseEther(ethToTokenValue) });
+      setLoading(true);
+      const tx = await vaultContract.ETHtomT({
+        value: ethers.parseEther(ethToConvert)
+      });
       await tx.wait();
-      alert("Converted ETH to mT tokens!");
-      await fetchBalances(vaultContract, tokenContract, wallet);
-      await fetchVaultETH(vaultContract);
+      setEthToConvert('');
+      await loadData();
+      setError('');
     } catch (err) {
-      console.error(err);
-      alert("Conversion failed.");
+      setError('ETH to mT conversion failed: ' + err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
-  // 2. Approve vault to spend user’s tokens
-  const handleApprove = async () => {
+  // Convert mT to ETH
+  const convertTokensToEth = async () => {
+    if (!vaultContract || !tokensToConvert) return;
+
+    try {
+      setLoading(true);
+      const amount = ethers.parseEther(tokensToConvert);
+      const tx = await vaultContract.mTtoETH(amount);
+      await tx.wait();
+      setTokensToConvert('');
+      await loadData();
+      setError('');
+    } catch (err) {
+      setError('mT to ETH conversion failed: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Approve tokens
+  const approveTokens = async () => {
     if (!tokenContract || !approveAmount) return;
+
     try {
-      const amt = parseUnits(approveAmount, 18);
-      const tx = await tokenContract.approve(VAULT_ADDRESS, amt);
+      setLoading(true);
+      const amount = ethers.parseEther(approveAmount);
+      const tx = await tokenContract.approve(VAULT_ADDRESS, amount);
       await tx.wait();
-      alert("Approval successful!");
+      setApproveAmount('');
+      setError('');
+      alert('Tokens approved successfully!');
     } catch (err) {
-      console.error(err);
-      alert("Approval failed.");
+      setError('Token approval failed: ' + err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
-  // 3. Convert mT tokens → ETH (requires prior approval)
-  const handleMTtoETH = async () => {
-    if (!vaultContract || !tokenToEthValue) return;
+  // Create Fixed Deposit
+  const createFixedDeposit = async () => {
+    if (!vaultContract || !fdAmount || !fdMonths) return;
+
     try {
-      const amt = parseUnits(tokenToEthValue, 18);
-      // Must have approved vault for at least `amt`
-      const tx = await vaultContract.mTtoETH(amt);
+      setLoading(true);
+      const amount = ethers.parseEther(fdAmount);
+      const tx = await vaultContract.createFD(amount, parseInt(fdMonths));
       await tx.wait();
-      alert("Converted mT to ETH!");
-      await fetchBalances(vaultContract, tokenContract, wallet);
-      await fetchVaultETH(vaultContract);
+      setFdAmount('');
+      setFdMonths('');
+      await loadData();
+      setError('');
     } catch (err) {
-      console.error(err);
-      alert("Conversion failed.");
+      setError('Fixed deposit creation failed: ' + err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
-  // 4. Create Fixed Deposit (requires approval)
-  const handleCreateFD = async () => {
-    if (!vaultContract || !fdTokenAmount || !fdMonths) return;
-    try {
-      const amt = parseUnits(fdTokenAmount, 18);
-      // Make sure user has approved vault for at least `amt`
-      const tx = await vaultContract.createFD(amt, Number(fdMonths));
-      await tx.wait();
-      alert("Fixed Deposit created!");
-      await fetchBalances(vaultContract, tokenContract, wallet);
-      await fetchFDs(vaultContract, wallet);
-    } catch (err) {
-      console.error(err);
-      alert("FD creation failed.");
-    }
-  };
-
-  // 5. Transfer mT tokens to another user
-  const handleTransferTokens = async () => {
-    if (!tokenContract || !recipient || !transferAmount) return;
-    try {
-      const amt = parseUnits(transferAmount, 18);
-      // MyToken has `transferToUser` function
-      const tx = await tokenContract.transferToUser(recipient, amt);
-      await tx.wait();
-      alert("Tokens sent!");
-      await fetchBalances(vaultContract, tokenContract, wallet);
-    } catch (err) {
-      console.error(err);
-      alert("Token transfer failed.");
-    }
-  };
-
-  // 6. Withdraw FD after maturity
-  const handleWithdrawFD = async (index) => {
+  // Withdraw Fixed Deposit
+  const withdrawFD = async (index) => {
     if (!vaultContract) return;
+
     try {
+      setLoading(true);
       const tx = await vaultContract.withdrawFD(index);
       await tx.wait();
-      alert("FD withdrawn!");
-      await fetchBalances(vaultContract, tokenContract, wallet);
-      await fetchFDs(vaultContract, wallet);
+      await loadData();
+      setError('');
     } catch (err) {
-      console.error(err);
-      alert("Withdrawal failed.");
+      setError('Withdrawal failed: ' + err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
-  // 7. Early withdraw FD (penalties)
-  const handleEarlyWithdraw = async (index) => {
+  // Early withdraw Fixed Deposit
+  const earlyWithdrawFD = async (index) => {
     if (!vaultContract) return;
+
     try {
+      setLoading(true);
       const tx = await vaultContract.earlyWithdrawFD(index);
       await tx.wait();
-      alert("Early withdrawal successful!");
-      await fetchBalances(vaultContract, tokenContract, wallet);
-      await fetchFDs(vaultContract, wallet);
+      await loadData();
+      setError('');
     } catch (err) {
-      console.error(err);
-      alert("Early withdrawal failed.");
+      setError('Early withdrawal failed: ' + err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
-  // 8. Renew an existing FD
-  const [renewFDIndex, setRenewFDIndex] = useState("");
-  const [renewMonths, setRenewMonths] = useState("");
+  // Renew Fixed Deposit
+  const renewFixedDeposit = async () => {
+    if (!vaultContract || !renewIndex || !renewMonths) return;
 
-  const handleRenewFD = async () => {
-    if (!vaultContract || renewFDIndex === "" || !renewMonths) return;
     try {
-      const tx = await vaultContract.renewFD(Number(renewFDIndex), Number(renewMonths));
+      setLoading(true);
+      const tx = await vaultContract.renewFD(parseInt(renewIndex), parseInt(renewMonths));
       await tx.wait();
-      alert("FD renewed!");
-      await fetchFDs(vaultContract, wallet);
+      setRenewIndex('');
+      setRenewMonths('');
+      await loadData();
+      setError('');
     } catch (err) {
-      console.error(err);
-      alert("Renew failed.");
+      setError('Renewal failed: ' + err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
-  // 9. Claim balance interest (monthly on token holdings)
-  const handleClaimInterest = async () => {
+  // Distribute monthly interest
+  const distributeInterest = async () => {
     if (!vaultContract) return;
+
     try {
-      const tx = await vaultContract.claimBalanceInterest();
+      setLoading(true);
+      const tx = await vaultContract.distributeMonthlyInterest();
       await tx.wait();
-      alert("Interest claimed!");
-      await fetchBalances(vaultContract, tokenContract, wallet);
+      await loadData();
+      setError('');
     } catch (err) {
-      console.error(err);
-      alert("Claim failed.");
+      setError('Interest distribution failed: ' + err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
-  // 10. Refresh Balances & FDs
-  const handleRefresh = async () => {
-    if (!vaultContract || !tokenContract) return;
-    await fetchBalances(vaultContract, tokenContract, wallet);
-    await fetchFDs(vaultContract, wallet);
-    await fetchVaultETH(vaultContract);
+  // Format date
+  const formatDate = (timestamp) => {
+    return new Date(Number(timestamp) * 1000).toLocaleDateString();
   };
 
-  // ─── Render ─────────────────────────────────────────────────────────────────────
+  // Check if FD is matured
+  const isFDMatured = (startTime, maturityPeriod) => {
+    const maturityTime = Number(startTime) + Number(maturityPeriod);
+    return Date.now() / 1000 >= maturityTime;
+  };
+
+  // Load data when wallet is connected
+  useEffect(() => {
+    if (account && vaultContract && tokenContract) {
+      loadData();
+    }
+  }, [account, vaultContract, tokenContract]);
+
   return (
-    <div className="p-8 space-y-8 max-w-2xl mx-auto">
-      <h1 className="text-3xl font-bold text-center">DeFi Fixed Deposit Dashboard</h1>
-
-      {/* ── Wallet Connect ───────────────────────────────────────────────── */}
-      {!wallet ? (
-        <div className="text-center">
-          <button
-            onClick={connectWallet}
-            className="px-6 py-3 bg-blue-600 text-white font-semibold rounded hover:bg-blue-700"
-          >
-            Connect MetaMask
-          </button>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
+      <div className="max-w-6xl mx-auto">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <h1 className="text-4xl font-bold text-gray-800 mb-4">
+            Fixed Deposit Vault DApp
+          </h1>
+          <p className="text-lg text-gray-600">
+            Create fixed deposits, earn interest, and manage your crypto investments
+          </p>
         </div>
-      ) : (
-        <div className="bg-gray-100 p-4 rounded shadow">
-          <p className="text-green-700 font-medium">Connected: {wallet}</p>
-          <button
-            onClick={handleRefresh}
-            className="mt-2 px-4 py-1 bg-yellow-400 rounded hover:bg-yellow-500"
-          >
-            Refresh Data
-          </button>
+
+        {/* Wallet Connection */}
+        <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
+          {!account ? (
+            <div className="text-center">
+              <Wallet className="w-12 h-12 text-blue-500 mx-auto mb-4" />
+              <h2 className="text-xl font-semibold mb-4">Connect Your Wallet</h2>
+              <button
+                onClick={connectWallet}
+                disabled={loading}
+                className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg font-medium disabled:opacity-50"
+              >
+                {loading ? 'Connecting...' : 'Connect MetaMask'}
+              </button>
+            </div>
+          ) : (
+            <div className="flex justify-between items-center">
+              <div>
+                <p className="text-sm text-gray-500">Connected Account</p>
+                <p className="font-mono text-sm">{account}</p>
+              </div>
+              <button
+                onClick={loadData}
+                disabled={loading}
+                className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Refresh
+              </button>
+            </div>
+          )}
         </div>
-      )}
 
-      {wallet && (
-        <>
-          {/* ── Display Balances ─────────────────────────────────────────────── */}
-          <div className="bg-white p-4 rounded shadow space-y-2">
-            <h2 className="text-xl font-semibold">Balances</h2>
-            <p>
-              Your mT Balance:{" "}
-              <span className="font-medium">{formatUnits(userBalance)} mT</span>
-            </p>
-            <p>
-              Vault’s mT Balance:{" "}
-              <span className="font-medium">{formatUnits(vaultBalance)} mT</span>
-            </p>
-            <p>
-              Vault’s ETH Balance:{" "}
-              <span className="font-medium">
-                {ethers.formatEther(vaultETH)} ETH
-              </span>
-            </p>
+        {/* Error Display */}
+        {error && (
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg mb-6 flex items-center gap-2">
+            <AlertCircle className="w-5 h-5" />
+            {error}
           </div>
+        )}
 
-          {/* ── 1. ETH → mT Conversion ─────────────────────────────────────── */}
-          <div className="bg-white p-4 rounded shadow">
-            <h2 className="text-xl font-semibold mb-2">Convert ETH → mT</h2>
-            <div className="flex items-center space-x-2">
-              <input
-                type="number"
-                step="0.001"
-                placeholder="Amount in ETH"
-                value={ethToTokenValue}
-                onChange={(e) => setEthToTokenValue(e.target.value)}
-                className="border px-3 py-1 rounded flex-1"
-              />
-              <button
-                onClick={handleETHtoMT}
-                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-              >
-                Convert
-              </button>
-            </div>
-          </div>
-
-          {/* ── 2. mT → ETH Conversion (Approval required) ─────────────── */}
-          <div className="bg-white p-4 rounded shadow space-y-2">
-            <h2 className="text-xl font-semibold mb-2">Convert mT → ETH</h2>
-
-            {/* Approve Vault */}
-            <div className="flex items-center space-x-2">
-              <input
-                type="number"
-                placeholder="Approve mT Amount"
-                value={approveAmount}
-                onChange={(e) => setApproveAmount(e.target.value)}
-                className="border px-3 py-1 rounded flex-1"
-              />
-              <button
-                onClick={handleApprove}
-                className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
-              >
-                Approve Vault
-              </button>
-            </div>
-
-            {/* Convert after Approval */}
-            <div className="flex items-center space-x-2">
-              <input
-                type="number"
-                placeholder="Amount in mT"
-                value={tokenToEthValue}
-                onChange={(e) => setTokenToEthValue(e.target.value)}
-                className="border px-3 py-1 rounded flex-1"
-              />
-              <button
-                onClick={handleMTtoETH}
-                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
-              >
-                Convert
-              </button>
-            </div>
-          </div>
-
-          {/* ── 3. Create Fixed Deposit (Approval required) ──────────────── */}
-          <div className="bg-white p-4 rounded shadow space-y-2">
-            <h2 className="text-xl font-semibold mb-2">Create Fixed Deposit</h2>
-
-            {/* Approve Vault */}
-            <div className="flex items-center space-x-2">
-              <input
-                type="number"
-                placeholder="Approve mT for FD"
-                value={approveAmount}
-                onChange={(e) => setApproveAmount(e.target.value)}
-                className="border px-3 py-1 rounded flex-1"
-              />
-              <button
-                onClick={handleApprove}
-                className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
-              >
-                Approve Vault
-              </button>
-            </div>
-
-            {/* Create FD */}
-            <div className="flex items-center space-x-2">
-              <input
-                type="number"
-                placeholder="mT Amount"
-                value={fdTokenAmount}
-                onChange={(e) => setFdTokenAmount(e.target.value)}
-                className="border px-3 py-1 rounded flex-1"
-              />
-              <input
-                type="number"
-                placeholder="Months"
-                value={fdMonths}
-                onChange={(e) => setFdMonths(e.target.value)}
-                className="border px-3 py-1 rounded w-24"
-              />
-              <button
-                onClick={handleCreateFD}
-                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-              >
-                Create FD
-              </button>
-            </div>
-          </div>
-
-          {/* ── 4. Transfer mT Tokens to Another User ─────────────────────── */}
-          <div className="bg-white p-4 rounded shadow space-y-2">
-            <h2 className="text-xl font-semibold mb-2">Transfer mT Tokens</h2>
-            <input
-              type="text"
-              placeholder="Recipient Address"
-              value={recipient}
-              onChange={(e) => setRecipient(e.target.value)}
-              className="border px-3 py-1 rounded w-full"
-            />
-            <div className="flex items-center space-x-2 mt-2">
-              <input
-                type="number"
-                placeholder="Amount in mT"
-                value={transferAmount}
-                onChange={(e) => setTransferAmount(e.target.value)}
-                className="border px-3 py-1 rounded flex-1"
-              />
-              <button
-                onClick={handleTransferTokens}
-                className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
-              >
-                Send
-              </button>
-            </div>
-          </div>
-
-          {/* ── 5. Existing Fixed Deposits ─────────────────────────────────── */}
-          <div className="bg-white p-4 rounded shadow space-y-2">
-            <h2 className="text-xl font-semibold mb-2">Your Fixed Deposits</h2>
-            {fixedDeposits.length === 0 && <p>No FDs found.</p>}
-            {fixedDeposits.map((fd, idx) => (
-              <div
-                key={idx}
-                className="border-t pt-2 flex flex-col space-y-1 md:flex-row md:justify-between md:items-center"
-              >
-                <div>
-                  <p>
-                    <strong>Index:</strong> {idx}
-                  </p>
-                  <p>
-                    <strong>Amount:</strong> {formatUnits(fd.amount)} mT
-                  </p>
-                  <p>
-                    <strong>Start:</strong>{" "}
-                    {new Date(Number(fd.startTime) * 1000).toLocaleDateString()}
-                  </p>
-                  <p>
-                    <strong>Maturity:</strong>{" "}
-                    {new Date(
-                      (Number(fd.startTime) + Number(fd.maturityPeriod)) * 1000
-                    ).toLocaleDateString()}
-                  </p>
-                  <p>
-                    <strong>Withdrawn:</strong> {fd.withdrawn ? "Yes" : "No"}
-                  </p>
-                  <p>
-                    <strong>Renewed:</strong> {fd.renewed ? "Yes" : "No"}
-                  </p>
+        {account && (
+          <>
+            {/* Balances */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+              <div className="bg-white rounded-xl shadow-lg p-6">
+                <div className="flex items-center gap-3 mb-2">
+                  <DollarSign className="w-6 h-6 text-blue-500" />
+                  <h3 className="font-semibold">ETH Balance</h3>
                 </div>
+                <p className="text-2xl font-bold">{parseFloat(ethBalance).toFixed(4)} ETH</p>
+              </div>
+              
+              <div className="bg-white rounded-xl shadow-lg p-6">
+                <div className="flex items-center gap-3 mb-2">
+                  <TrendingUp className="w-6 h-6 text-green-500" />
+                  <h3 className="font-semibold">mT Balance</h3>
+                </div>
+                <p className="text-2xl font-bold">{parseFloat(tokenBalance).toFixed(2)} mT</p>
+              </div>
+              
+              <div className="bg-white rounded-xl shadow-lg p-6">
+                <div className="flex items-center gap-3 mb-2">
+                  <Wallet className="w-6 h-6 text-purple-500" />
+                  <h3 className="font-semibold">Vault ETH</h3>
+                </div>
+                <p className="text-2xl font-bold">{parseFloat(vaultEthBalance).toFixed(4)} ETH</p>
+              </div>
+            </div>
 
-                <div className="flex space-x-2 mt-2 md:mt-0">
+            {/* Token Operations */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+              {/* ETH to mT Conversion */}
+              <div className="bg-white rounded-xl shadow-lg p-6">
+                <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                  <ArrowUpDown className="w-5 h-5" />
+                  Convert ETH to mT
+                </h3>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">ETH Amount</label>
+                    <input
+                      type="number"
+                      step="0.001"
+                      value={ethToConvert}
+                      onChange={(e) => setEthToConvert(e.target.value)}
+                      placeholder="0.0"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
                   <button
-                    onClick={() => handleWithdrawFD(idx)}
-                    className="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600"
+                    onClick={convertEthToTokens}
+                    disabled={loading || !ethToConvert}
+                    className="w-full bg-blue-500 hover:bg-blue-600 text-white py-2 rounded-lg disabled:opacity-50"
                   >
-                    Withdraw
+                    Convert to mT
                   </button>
+                  <p className="text-sm text-gray-500">Rate: 1 ETH = 200,000 mT</p>
+                </div>
+              </div>
+
+              {/* mT to ETH Conversion */}
+              <div className="bg-white rounded-xl shadow-lg p-6">
+                <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                  <ArrowUpDown className="w-5 h-5" />
+                  Convert mT to ETH
+                </h3>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">mT Amount</label>
+                    <input
+                      type="number"
+                      value={tokensToConvert}
+                      onChange={(e) => setTokensToConvert(e.target.value)}
+                      placeholder="0"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
                   <button
-                    onClick={() => handleEarlyWithdraw(idx)}
-                    className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600"
+                    onClick={convertTokensToEth}
+                    disabled={loading || !tokensToConvert}
+                    className="w-full bg-green-500 hover:bg-green-600 text-white py-2 rounded-lg disabled:opacity-50"
                   >
-                    Early Withdraw
+                    Convert to ETH
                   </button>
                 </div>
               </div>
-            ))}
-          </div>
-
-          {/* ── 6. Renew FD ───────────────────────────────────────────────────── */}
-          <div className="bg-white p-4 rounded shadow space-y-2">
-            <h2 className="text-xl font-semibold mb-2">Renew Fixed Deposit</h2>
-            <div className="flex space-x-2">
-              <input
-                type="number"
-                placeholder="FD Index"
-                value={renewFDIndex}
-                onChange={(e) => setRenewFDIndex(e.target.value)}
-                className="border px-3 py-1 rounded w-24"
-              />
-              <input
-                type="number"
-                placeholder="New Months"
-                value={renewMonths}
-                onChange={(e) => setRenewMonths(e.target.value)}
-                className="border px-3 py-1 rounded w-24"
-              />
-              <button
-                onClick={handleRenewFD}
-                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-              >
-                Renew FD
-              </button>
             </div>
-          </div>
 
-          {/* ── 7. Claim Balance Interest ──────────────────────────────────────── */}
-          <div className="bg-white p-4 rounded shadow">
-            <h2 className="text-xl font-semibold mb-2">Claim Balance Interest</h2>
-            <button
-              onClick={handleClaimInterest}
-              className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
-            >
-              Claim Interest
-            </button>
-          </div>
-        </>
-      )}
+            {/* Token Approval */}
+            <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
+              <h3 className="text-xl font-semibold mb-4">Approve Tokens for Vault</h3>
+              <div className="flex gap-4">
+                <input
+                  type="number"
+                  value={approveAmount}
+                  onChange={(e) => setApproveAmount(e.target.value)}
+                  placeholder="Amount to approve"
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <button
+                  onClick={approveTokens}
+                  disabled={loading || !approveAmount}
+                  className="bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-2 rounded-lg disabled:opacity-50"
+                >
+                  Approve
+                </button>
+              </div>
+            </div>
+
+            {/* Create Fixed Deposit */}
+            <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
+              <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                <Clock className="w-5 h-5" />
+                Create Fixed Deposit
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2">Amount (mT)</label>
+                  <input
+                    type="number"
+                    value={fdAmount}
+                    onChange={(e) => setFdAmount(e.target.value)}
+                    placeholder="Amount"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">Months</label>
+                  <input
+                    type="number"
+                    value={fdMonths}
+                    onChange={(e) => setFdMonths(e.target.value)}
+                    placeholder="Duration"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div className="flex items-end">
+                  <button
+                    onClick={createFixedDeposit}
+                    disabled={loading || !fdAmount || !fdMonths}
+                    className="w-full bg-purple-500 hover:bg-purple-600 text-white py-2 rounded-lg disabled:opacity-50"
+                  >
+                    Create FD
+                  </button>
+                </div>
+              </div>
+              <p className="text-sm text-gray-500 mt-2">Interest Rate: 1% per month (compound)</p>
+            </div>
+
+            {/* Fixed Deposits List */}
+            <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
+              <h3 className="text-xl font-semibold mb-4">Your Fixed Deposits</h3>
+              {fixedDeposits.length === 0 ? (
+                <p className="text-gray-500">No fixed deposits found.</p>
+              ) : (
+                <div className="space-y-4">
+                  {fixedDeposits.map((fd, index) => {
+                    const isMatured = isFDMatured(fd.startTime, fd.maturityPeriod);
+                    const maturityDate = new Date((Number(fd.startTime) + Number(fd.maturityPeriod)) * 1000);
+                    
+                    return (
+                      <div key={index} className="border rounded-lg p-4">
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
+                          <div>
+                            <p className="text-sm text-gray-500">Amount</p>
+                            <p className="font-semibold">{ethers.formatEther(fd.amount)} mT</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-500">Start Date</p>
+                            <p>{formatDate(fd.startTime)}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-500">Maturity</p>
+                            <p>{maturityDate.toLocaleDateString()}</p>
+                            <span className={`text-xs px-2 py-1 rounded-full ${
+                              isMatured ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                            }`}>
+                              {isMatured ? 'Matured' : 'Active'}
+                            </span>
+                          </div>
+                          <div className="flex gap-2">
+                            {!fd.withdrawn && (
+                              <>
+                                {isMatured ? (
+                                  <button
+                                    onClick={() => withdrawFD(index)}
+                                    className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm"
+                                  >
+                                    Withdraw
+                                  </button>
+                                ) : (
+                                  <button
+                                    onClick={() => earlyWithdrawFD(index)}
+                                    className="bg-orange-500 hover:bg-orange-600 text-white px-3 py-1 rounded text-sm"
+                                  >
+                                    Early Withdraw
+                                  </button>
+                                )}
+                              </>
+                            )}
+                            {fd.withdrawn && (
+                              <span className="text-gray-500 text-sm">Withdrawn</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Renew FD */}
+            <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
+              <h3 className="text-xl font-semibold mb-4">Renew Fixed Deposit</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2">FD Index</label>
+                  <input
+                    type="number"
+                    value={renewIndex}
+                    onChange={(e) => setRenewIndex(e.target.value)}
+                    placeholder="FD Index"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">New Duration (Months)</label>
+                  <input
+                    type="number"
+                    value={renewMonths}
+                    onChange={(e) => setRenewMonths(e.target.value)}
+                    placeholder="Months"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div className="flex items-end">
+                  <button
+                    onClick={renewFixedDeposit}
+                    disabled={loading || !renewIndex || !renewMonths}
+                    className="w-full bg-indigo-500 hover:bg-indigo-600 text-white py-2 rounded-lg disabled:opacity-50"
+                  >
+                    Renew FD
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Admin Functions */}
+            <div className="bg-white rounded-xl shadow-lg p-6">
+              <h3 className="text-xl font-semibold mb-4">Admin Functions</h3>
+              <button
+                onClick={distributeInterest}
+                disabled={loading}
+                className="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-lg disabled:opacity-50"
+              >
+                Distribute Monthly Interest
+              </button>
+              <p className="text-sm text-gray-500 mt-2">
+                Distributes 0.5% monthly interest to all token holders
+              </p>
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
-}
+};
+
+export default FixedDepositDApp;

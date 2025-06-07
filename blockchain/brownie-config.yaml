@@ -10,3 +10,12 @@ networks:
   development:
     host: http://127.0.0.1
     port: 7545
+  sepolia:
+    host: https://sepolia.infura.io/v3/YOUR_INFURA_PROJECT_ID
+    chainid: 11155111
+    explorer: https://api-sepolia.etherscan.io/api
+    gas_price: auto
+
+dotenv: .env
+wallets:
+  from_key: ${PRIVATE_KEY}
