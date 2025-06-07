@@ -38,7 +38,7 @@ export default function Homepage() {
         if (!contract || !fdAmount) return;
         try {
             const amount = parseEther(fdAmount);
-            const tx = await contract.createFD(amount);
+            const tx = await contract.createFD(amount); 
             await tx.wait();
             alert("Fixed Deposit created successfully!");
         } catch (err) {
