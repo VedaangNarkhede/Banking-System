@@ -42,12 +42,12 @@ export function ConvertTab({ onTransactionStart, onTransactionEnd, onBalanceUpda
       const tx = await contractService.convertETHtoMT(ethToMtAmount);
       await tx.wait();
       
-      onTransactionEnd(true, "ETH converted to mT tokens successfully!");
+      onTransactionEnd(true, "ETH converted to GTC tokens successfully!");
       onBalanceUpdate();
       setEthToMtAmount("");
     } catch (error) {
-      console.error("ETH to mT conversion failed:", error);
-      onTransactionEnd(false, "ETH to mT conversion failed. Please try again.");
+      console.error("ETH to GTC conversion failed:", error);
+      onTransactionEnd(false, "ETH to GTC conversion failed. Please try again.");
     } finally {
       setIsProcessing(false);
     }
@@ -82,12 +82,12 @@ export function ConvertTab({ onTransactionStart, onTransactionEnd, onBalanceUpda
       const tx = await contractService.convertMTtoETH(mtToEthAmount);
       await tx.wait();
       
-      onTransactionEnd(true, "mT tokens converted to ETH successfully!");
+      onTransactionEnd(true, "GTC tokens converted to ETH successfully!");
       onBalanceUpdate();
       setMtToEthAmount("");
     } catch (error) {
-      console.error("mT to ETH conversion failed:", error);
-      onTransactionEnd(false, "mT to ETH conversion failed. Please try again.");
+      console.error("GTC to ETH conversion failed:", error);
+      onTransactionEnd(false, "GTC to ETH conversion failed. Please try again.");
     } finally {
       setIsProcessing(false);
     }
@@ -95,20 +95,20 @@ export function ConvertTab({ onTransactionStart, onTransactionEnd, onBalanceUpda
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-      {/* ETH to mT Conversion */}
+      {/* ETH to GTC Conversion */}
       <Card className="card-shadow">
         <CardHeader>
           <CardTitle className="flex items-center space-x-3">
             <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
               <Coins className="w-4 h-4 text-blue-600" />
             </div>
-            <span>ETH → mT Tokens</span>
+            <span>ETH → GTC Tokens</span>
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="bg-neutral-50 rounded-lg p-4 border">
             <div className="text-sm text-neutral-600 mb-2">Exchange Rate</div>
-            <div className="text-lg font-medium">1 ETH = {ETH_TO_MT_RATE.toLocaleString()} mT</div>
+            <div className="text-lg font-medium">1 ETH = {ETH_TO_MT_RATE.toLocaleString()} GTC</div>
           </div>
           
           <div className="space-y-4">
@@ -137,7 +137,7 @@ export function ConvertTab({ onTransactionStart, onTransactionEnd, onBalanceUpda
             <div>
               <Label>You'll Receive</Label>
               <div className="bg-neutral-100 border rounded-lg px-4 py-3 mt-2">
-                <div className="text-lg font-medium">{calculateMtTokens(ethToMtAmount)} mT</div>
+                <div className="text-lg font-medium">{calculateMtTokens(ethToMtAmount)} GTC</div>
               </div>
             </div>
             
@@ -146,20 +146,20 @@ export function ConvertTab({ onTransactionStart, onTransactionEnd, onBalanceUpda
               onClick={handleETHtoMT}
               disabled={!ethToMtAmount || isProcessing}
             >
-              Convert to mT Tokens
+              Convert to GTC Tokens
             </Button>
           </div>
         </CardContent>
       </Card>
 
-      {/* mT to ETH Conversion */}
+      {/* GTC to ETH Conversion */}
       <Card className="card-shadow">
         <CardHeader>
           <CardTitle className="flex items-center space-x-3">
             <div className="w-8 h-8 bg-cyan-100 rounded-full flex items-center justify-center">
               <Coins className="w-4 h-4 text-cyan-600" />
             </div>
-            <span>mT Tokens → ETH</span>
+            <span>GTC Tokens → ETH</span>
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -167,7 +167,7 @@ export function ConvertTab({ onTransactionStart, onTransactionEnd, onBalanceUpda
             <AlertTriangle className="w-4 h-4 text-yellow-600" />
             <AlertDescription className="text-yellow-700">
               <div className="font-medium mb-1">Approval Required</div>
-              <div>You need to approve the vault to spend your mT tokens first.</div>
+              <div>You need to approve the vault to spend your GTC tokens first.</div>
             </AlertDescription>
           </Alert>
           
@@ -194,7 +194,7 @@ export function ConvertTab({ onTransactionStart, onTransactionEnd, onBalanceUpda
             </div>
             
             <div>
-              <Label htmlFor="mt-amount">mT Amount</Label>
+              <Label htmlFor="mt-amount">GTC Amount</Label>
               <div className="relative mt-2">
                 <Input
                   id="mt-amount"
@@ -205,7 +205,7 @@ export function ConvertTab({ onTransactionStart, onTransactionEnd, onBalanceUpda
                   className="pr-12"
                 />
                 <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
-                  <span className="text-neutral-500 text-sm">mT</span>
+                  <span className="text-neutral-500 text-sm">GTC</span>
                 </div>
               </div>
             </div>

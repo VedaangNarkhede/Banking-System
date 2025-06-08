@@ -49,7 +49,7 @@ export function InterestTab({ userBalance, onTransactionStart, onTransactionEnd,
           <Percent className="w-8 h-8 text-yellow-600" />
         </div>
         <h3 className="text-xl font-semibold mb-2">Balance Interest</h3>
-        <p className="text-neutral-600">Earn 0.5% monthly interest on your mT token balance</p>
+        <p className="text-neutral-600">Earn 0.5% monthly interest on your GTC token balance</p>
       </div>
       
       {/* Interest Stats */}
@@ -87,7 +87,7 @@ export function InterestTab({ userBalance, onTransactionStart, onTransactionEnd,
           <div className="bg-white rounded-lg p-4 mb-6">
             <div className="flex justify-between items-center mb-2">
               <span className="text-sm text-neutral-600">Eligible Balance:</span>
-              <span className="font-medium">{userBalance ? parseFloat(userBalance).toLocaleString() : "0"} mT</span>
+              <span className="font-medium">{userBalance ? parseFloat(userBalance).toLocaleString() : "0"} GTC</span>
             </div>
             <div className="flex justify-between items-center mb-2">
               <span className="text-sm text-neutral-600">Interest Rate:</span>
@@ -95,7 +95,7 @@ export function InterestTab({ userBalance, onTransactionStart, onTransactionEnd,
             </div>
             <div className="flex justify-between items-center">
               <span className="text-sm text-neutral-600">Estimated Interest:</span>
-              <span className="font-medium">{calculatePendingInterest()} mT</span>
+              <span className="font-medium">{calculatePendingInterest()} GTC</span>
             </div>
           </div>
           
@@ -104,7 +104,7 @@ export function InterestTab({ userBalance, onTransactionStart, onTransactionEnd,
             onClick={handleClaimInterest}
             disabled={isProcessing || !userBalance || parseFloat(userBalance) === 0}
           >
-            Distribute Interest ({calculatePendingInterest()} mT)
+            Distribute Interest ({calculatePendingInterest()} GTC)
           </Button>
         </CardContent>
       </Card>

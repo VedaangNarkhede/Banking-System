@@ -186,7 +186,7 @@ export function DepositsTab({ walletAddress, onTransactionStart, onTransactionEn
             <div className="mt-4 p-4 bg-white rounded-lg border border-green-200">
               <div className="text-sm text-neutral-600">Expected Returns:</div>
               <div className="text-lg font-semibold text-green-600">
-                {calculateExpectedReturns(fdAmount, fdMonths)} mT (1% monthly)
+                {calculateExpectedReturns(fdAmount, fdMonths)} GTC (1% monthly)
               </div>
             </div>
           )}
@@ -227,7 +227,7 @@ export function DepositsTab({ walletAddress, onTransactionStart, onTransactionEn
                     <div className="flex items-start justify-between mb-4">
                       <div>
                         <div className="text-sm text-neutral-600">Deposit #{index + 1}</div>
-                        <div className="text-xl font-semibold">{parseFloat(fd.amount).toLocaleString()} mT</div>
+                        <div className="text-xl font-semibold">{parseFloat(fd.amount).toLocaleString()} GTC</div>
                       </div>
                       <Badge 
                         variant={withdrawn ? "secondary" : matured ? "default" : "outline"}
@@ -267,7 +267,7 @@ export function DepositsTab({ walletAddress, onTransactionStart, onTransactionEn
                             {matured ? 'Ready to Withdraw' : 'Expected Maturity Value'}
                           </div>
                           <div className={`text-lg font-semibold ${matured ? 'text-green-700' : 'text-neutral-800'}`}>
-                            {calculateExpectedReturns(fd.amount, Math.round(parseInt(fd.maturityPeriod) / (30 * 24 * 60 * 60)).toString())} mT
+                            {calculateExpectedReturns(fd.amount, Math.round(parseInt(fd.maturityPeriod) / (30 * 24 * 60 * 60)).toString())} GTC
                           </div>
                         </div>
                         

@@ -132,7 +132,7 @@ export default function Dashboard() {
                 </div>
                 <div className="flex items-center justify-center space-x-2">
                   <ArrowLeftRight className="w-4 h-4 text-cyan-600" />
-                  <span>Easy ETH ↔ mT conversions</span>
+                  <span>Easy ETH ↔ GTC conversions</span>
                 </div>
               </div>
             </div>
@@ -191,12 +191,12 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <Card className="card-shadow">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-neutral-600">Your mT Balance</CardTitle>
+              <CardTitle className="text-sm font-medium text-neutral-600">Your GTC Balance</CardTitle>
               <Coins className="w-4 h-4 text-blue-600" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{parseFloat(userTokenBalance).toLocaleString()}</div>
-              <p className="text-xs text-neutral-500 mt-1">mT Tokens</p>
+              <p className="text-xs text-neutral-500 mt-1">GTC Tokens</p>
             </CardContent>
           </Card>
           
@@ -218,7 +218,7 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{parseFloat(totalFDValue).toLocaleString()}</div>
-              <p className="text-xs text-neutral-500 mt-1">mT Tokens</p>
+              <p className="text-xs text-neutral-500 mt-1">GTC Tokens</p>
             </CardContent>
           </Card>
         </div>

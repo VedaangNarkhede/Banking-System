@@ -53,7 +53,7 @@ export function TransferTab({ userBalance, onTransactionStart, onTransactionEnd,
           <div className="w-16 h-16 bg-cyan-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <Send className="w-6 h-6 text-cyan-600" />
           </div>
-          <CardTitle>Transfer mT Tokens</CardTitle>
+          <CardTitle>Transfer GTC Tokens</CardTitle>
           <p className="text-sm text-neutral-600">Send tokens to another wallet address</p>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -81,12 +81,12 @@ export function TransferTab({ userBalance, onTransactionStart, onTransactionEnd,
                 className="pr-12"
               />
               <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
-                <span className="text-neutral-500 text-sm">mT</span>
+                <span className="text-neutral-500 text-sm">GTC</span>
               </div>
             </div>
             {userBalance && (
               <div className="text-xs text-neutral-500 mt-1">
-                Available: {parseFloat(userBalance).toLocaleString()} mT
+                Available: {parseFloat(userBalance).toLocaleString()} GTC
               </div>
             )}
           </div>
