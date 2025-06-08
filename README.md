@@ -36,7 +36,7 @@ A decentralized application (DApp) built on Ethereum that allows users to create
 - **ERC20 Standard**: Custom token implementation with burn/mint capabilities
 
 ### **Frontend**
-- **Next.js**: React framework for production-ready applications
+- **Vite.js**: React framework for production-ready applications
 - **Ethers.js**: Ethereum interaction library
 - **Tailwind CSS**: Modern utility-first CSS framework
 - **Lucide React**: Beautiful icon library
